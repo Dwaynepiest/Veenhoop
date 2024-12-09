@@ -43,6 +43,44 @@ app.post('/user', async (req, res) => {
     }
 });
 
+app.post('/login', async (req, res) => {
+    const { email, wachtwoord } = req.body;
+
+    // Controleer of verplichte velden zijn ingevuld
+    if (!email || !wachtwoord) {
+        return res.status(400).send('Email en wachtwoord zijn verplicht');
+    }
+
+    try {
+        // Haal de gebruiker op uit de database op basis van het emailadres
+        const query = 'SELECT * FROM user WHERE email = ?';
+        db.query(query, [email], async (err, results) => {
+            if (err) {
+                console.error('Fout bij het ophalen van gebruiker:', err);
+                return res.status(500).send('Er is een fout opgetreden bij het verwerken van de gegevens');
+            }
+
+            if (results.length === 0) {
+                return res.status(404).send('Gebruiker niet gevonden');
+            }
+
+            const user = results[0];
+
+            // Vergelijk het ingevoerde wachtwoord met het gehashte wachtwoord
+            const isPasswordValid = await bcrypt.compare(wachtwoord, user.wachtwoord);
+            if (!isPasswordValid) {
+                return res.status(401).send('Ongeldig wachtwoord');
+            }
+
+            // Login succesvol
+            res.status(200).send(`Welkom, ${user.voornaam} u bent nu ingelogd!`);
+        });
+    } catch (err) {
+        console.error('Fout bij het verwerken van de login:', err);
+        res.status(500).send('Er is een fout opgetreden bij het verwerken van de login');
+    }
+});
+
 app.put('/user/:id', async (req, res) => {
     const { id } = req.params; // Haal de id uit de URL-parameters
     const { voornaam, tussenvoegsel, achternaam, adres, wachtwoord, email, telefoonnummer, mobiel_nummer } = req.body;
