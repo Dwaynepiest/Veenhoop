@@ -153,6 +153,12 @@ app.put('/user/:id', async (req, res) => {
     }
 });
 
+app.get('/vakken', (req, res) => {
+    db.query('SELECT * FROM vakken', (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
