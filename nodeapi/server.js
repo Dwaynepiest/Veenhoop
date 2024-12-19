@@ -6,6 +6,18 @@ const bcrypt = require('bcrypt');
 const app = express();
 app.use(express.json()); // To parse JSON bodies
 
+const API_KEY = 'f49ifBCYB0mIGSTurcnUkG031hMpI05azULM0j8GgfgxQWhxwAcFctQVpwQImdok'; 
+
+const checkApiKey = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey || apiKey !== API_KEY) {
+        return res.status(403).json({ message: 'Toegang geweigerd: Ongeldige API-key' });
+    }
+    next();
+};
+
+// Pas de middleware toe op alle routes
+app.use(checkApiKey);
 
 
 app.get('/user', (req, res) => {
@@ -40,6 +52,44 @@ app.post('/user', async (req, res) => {
     } catch (err) {
         console.error('Fout bij het hashen van het wachtwoord:', err);
         res.status(500).send('Er is een fout opgetreden bij het verwerken van de gegevens');
+    }
+});
+
+app.post('/login', async (req, res) => {
+    const { email, wachtwoord } = req.body;
+
+    // Controleer of verplichte velden zijn ingevuld
+    if (!email || !wachtwoord) {
+        return res.status(400).send('Email en wachtwoord zijn verplicht');
+    }
+
+    try {
+        // Haal de gebruiker op uit de database op basis van het emailadres
+        const query = 'SELECT * FROM user WHERE email = ?';
+        db.query(query, [email], async (err, results) => {
+            if (err) {
+                console.error('Fout bij het ophalen van gebruiker:', err);
+                return res.status(500).send('Er is een fout opgetreden bij het verwerken van de gegevens');
+            }
+
+            if (results.length === 0) {
+                return res.status(404).send('Gebruiker niet gevonden');
+            }
+
+            const user = results[0];
+
+            // Vergelijk het ingevoerde wachtwoord met het gehashte wachtwoord
+            const isPasswordValid = await bcrypt.compare(wachtwoord, user.wachtwoord);
+            if (!isPasswordValid) {
+                return res.status(401).send('Ongeldig wachtwoord');
+            }
+
+            // Login succesvol
+            res.status(200).send(`Welkom, ${user.voornaam} u bent nu ingelogd!`);
+        });
+    } catch (err) {
+        console.error('Fout bij het verwerken van de login:', err);
+        res.status(500).send('Er is een fout opgetreden bij het verwerken van de login');
     }
 });
 
@@ -113,6 +163,46 @@ app.put('/user/:id', async (req, res) => {
         console.error('Fout bij het verwerken van de gegevens:', err);
         res.status(500).send('Er is een fout opgetreden bij het verwerken van de gegevens');
     }
+});
+
+app.get('/vakken', (req, res) => {
+    db.query('SELECT * FROM vakken', (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+app.get('/cijfers', (req, res) => {
+    db.query('SELECT * FROM cijfers', (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+app.post('/cijfers', (req, res) => {
+    const { cijfer } = req.body; // Haal de gegevens uit de body van de request
+    const query = 'INSERT INTO Cijfer (cijfer) VALUES (?)';
+
+    db.query(query, [ cijfer ], (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.status(201).json({ message: 'Cijfer succesvol toegevoegd!', results });
+    });
+});
+
+app.put('/cijfers/:id', (req, res) => {
+    const { cijfer } = req.body; // Haal de gegevens uit de body van de request
+    const { id } = req.params;  // Haal het id uit de URL-parameter
+    const query = 'UPDATE Cijfer SET cijfer = ? WHERE id = ?';
+
+    db.query(query, [cijfer, id], (err, results) => {
+        if (err) return res.status(500).send(err);
+
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: 'Cijfer niet gevonden!' });
+        }
+
+        res.status(200).json({ message: 'Cijfer succesvol bijgewerkt!', results });
+    });
 });
 
 
