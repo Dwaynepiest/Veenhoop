@@ -47,7 +47,7 @@ app.post('/user', async (req, res) => {
                 console.error('Fout bij het toevoegen van gebruiker:', err);
                 return res.status(500).send(err);
             }
-            res.status(201).send(`${voornaam} is toegevoegd aan de database`);
+            res.status(201).send(`${voornaam} is succesvol geregistreerd`);
         });
     } catch (err) {
         console.error('Fout bij het hashen van het wachtwoord:', err);
@@ -165,6 +165,37 @@ app.put('/user/:id', async (req, res) => {
     }
 });
 
+app.delete('/user/:id', (req, res) => {
+    const { id } = req.params; // Haal de id uit de URL-parameters
+
+    try {
+        // Controleer of de gebruiker bestaat
+        db.query('SELECT * FROM user WHERE id = ?', [id], (err, results) => {
+            if (err) {
+                console.error('Fout bij het ophalen van de gebruiker:', err);
+                return res.status(500).send('Er is een fout opgetreden bij het ophalen van de gegevens');
+            }
+
+            if (results.length === 0) {
+                return res.status(404).send(`Gebruiker met id ${id} niet gevonden`);
+            }
+
+            // Verwijder de gebruiker
+            db.query('DELETE FROM user WHERE id = ?', [id], (deleteErr, deleteResults) => {
+                if (deleteErr) {
+                    console.error('Fout bij het verwijderen van de gebruiker:', deleteErr);
+                    return res.status(500).send('Er is een fout opgetreden bij het verwijderen van de gebruiker');
+                }
+
+                res.status(200).send(`Gebruiker met id ${id} is succesvol verwijderd`);
+            });
+        });
+    } catch (err) {
+        console.error('Fout bij het verwerken van de gegevens:', err);
+        res.status(500).send('Er is een fout opgetreden bij het verwerken van de gegevens');
+    }
+});
+
 app.get('/vakken', (req, res) => {
     db.query('SELECT * FROM vakken', (err, results) => {
         if (err) return res.status(500).send(err);
@@ -181,7 +212,7 @@ app.get('/cijfers', (req, res) => {
 
 app.post('/cijfers', (req, res) => {
     const { cijfer } = req.body; // Haal de gegevens uit de body van de request
-    const query = 'INSERT INTO Cijfer (cijfer) VALUES (?)';
+    const query = 'INSERT INTO cijfers (cijfer) VALUES (?)';
 
     db.query(query, [ cijfer ], (err, results) => {
         if (err) return res.status(500).send(err);
@@ -189,10 +220,10 @@ app.post('/cijfers', (req, res) => {
     });
 });
 
-app.put('/cijfers/:id', (req, res) => {
+app.put('/cijfers/:userid', (req, res) => {
     const { cijfer } = req.body; // Haal de gegevens uit de body van de request
     const { id } = req.params;  // Haal het id uit de URL-parameter
-    const query = 'UPDATE Cijfer SET cijfer = ? WHERE id = ?';
+    const query = 'UPDATE cijfers SET cijfer = ? WHERE userid = ?';
 
     db.query(query, [cijfer, id], (err, results) => {
         if (err) return res.status(500).send(err);
