@@ -6,6 +6,18 @@ const bcrypt = require('bcrypt');
 const app = express();
 app.use(express.json()); // To parse JSON bodies
 
+const API_KEY = 'f49ifBCYB0mIGSTurcnUkG031hMpI05azULM0j8GgfgxQWhxwAcFctQVpwQImdok'; 
+
+const checkApiKey = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey || apiKey !== API_KEY) {
+        return res.status(403).json({ message: 'Toegang geweigerd: Ongeldige API-key' });
+    }
+    next();
+};
+
+// Pas de middleware toe op alle routes
+app.use(checkApiKey);
 
 
 app.get('/user', (req, res) => {
@@ -159,6 +171,40 @@ app.get('/vakken', (req, res) => {
         res.json(results);
     });
 });
+
+app.get('/cijfers', (req, res) => {
+    db.query('SELECT * FROM cijfers', (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+app.post('/cijfers', (req, res) => {
+    const { cijfer } = req.body; // Haal de gegevens uit de body van de request
+    const query = 'INSERT INTO Cijfer (cijfer) VALUES (?)';
+
+    db.query(query, [ cijfer ], (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.status(201).json({ message: 'Cijfer succesvol toegevoegd!', results });
+    });
+});
+
+app.put('/cijfers/:id', (req, res) => {
+    const { cijfer } = req.body; // Haal de gegevens uit de body van de request
+    const { id } = req.params;  // Haal het id uit de URL-parameter
+    const query = 'UPDATE Cijfer SET cijfer = ? WHERE id = ?';
+
+    db.query(query, [cijfer, id], (err, results) => {
+        if (err) return res.status(500).send(err);
+
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: 'Cijfer niet gevonden!' });
+        }
+
+        res.status(200).json({ message: 'Cijfer succesvol bijgewerkt!', results });
+    });
+});
+
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
